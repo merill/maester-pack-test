@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Demo pack insights</title>
+<!--
+  The report of MP.DEMO.1008, and a gallery of ideas for your own pack's report.
+
+  Open this file in a browser while you design: it loads Chart.js from chart.js/ and draws the sample data in
+  the report-data block below. When the test runs, helpers/Get-DemoReportHtml.ps1 puts Chart.js inline in
+  place of the script tag and replaces the sample data with the data of the run, so the report is one file.
+
+  Everything is drawn from that JSON, and text is written with textContent, never innerHTML, so a value from
+  the tenant cannot add markup to the page.
+-->
+<style>
+:root {
+  color-scheme: light;
+  --page: #f9f9f7; --card: #fcfcfb; --ink: #0b0b0b; --ink-2: #52514e; --muted: #75736e;
+  --line: rgba(11, 11, 11, 0.10); --grid: #e1e0d9; --axis: #c3c2b7;
+  --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --s4: #eda100; --neutral: #c3c2b7;
+  --good: #0ca30c; --critical: #d03b3b; --good-text: #006300; --bad-text: #b42828;
+  --heat-0: #f0efec; --heat-1: #cde2fb; --heat-2: #86b6ef; --heat-3: #3987e5; --heat-4: #1c5cab; --heat-5: #0d366b;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --page: #0d0d0d; --card: #1a1a19; --ink: #f0efec; --ink-2: #c3c2b7; --muted: #9b9991;
+    --line: rgba(255, 255, 255, 0.10); --grid: #2c2c2a; --axis: #383835;
+    --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500; --neutral: #52514e;
+    --good: #0ca30c; --critical: #e05252; --good-text: #3fbf3f; --bad-text: #f07a7a;
+    --heat-0: #262624; --heat-1: #184f95; --heat-2: #256abf; --heat-3: #3987e5; --heat-4: #86b6ef; --heat-5: #cde2fb;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --page: #0d0d0d; --card: #1a1a19; --ink: #f0efec; --ink-2: #c3c2b7; --muted: #9b9991;
+  --line: rgba(255, 255, 255, 0.10); --grid: #2c2c2a; --axis: #383835;
+  --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500; --neutral: #52514e;
+  --good: #0ca30c; --critical: #e05252; --good-text: #3fbf3f; --bad-text: #f07a7a;
+  --heat-0: #262624; --heat-1: #184f95; --heat-2: #256abf; --heat-3: #3987e5; --heat-4: #86b6ef; --heat-5: #cde2fb;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--page); color: var(--ink); font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+main { max-width: 1180px; margin: 0 auto; padding: 32px 16px 48px; }
+header h1 { margin: 0; font-size: 26px; letter-spacing: -0.01em; }
+header p { margin: 6px 0 0; color: var(--ink-2); max-width: 760px; }
+.meta { color: var(--muted); font-size: 13px; margin-top: 4px; }
+h2 { font-size: 15px; margin: 0; }
+.section-title { font-size: 13px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin: 32px 0 12px; font-weight: 600; }
+
+/* Stat tiles */
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; margin-top: 24px; }
+.tile { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px 10px; display: flex; flex-direction: column; min-width: 0; }
+.tile .label { color: var(--ink-2); font-size: 13px; }
+.tile .value { font-size: 30px; font-weight: 650; line-height: 1.15; margin-top: 2px; }
+.tile .note { color: var(--muted); font-size: 12px; }
+.tile .delta { font-size: 12px; font-weight: 600; margin-top: 2px; }
+.delta.better { color: var(--good-text); } .delta.worse { color: var(--bad-text); } .delta.flat { color: var(--ink-2); }
+.tile .spark { height: 36px; margin-top: 6px; }
+
+/* Cards */
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 520px), 1fr)); gap: 16px; }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 18px 18px 14px; min-width: 0; display: flex; flex-direction: column; }
+.takeaway { margin: 4px 0 14px; color: var(--ink-2); font-size: 14px; }
+.takeaway b { color: var(--ink); }
+.plot { position: relative; height: 260px; }
+.plot.tall { height: 320px; }
+.idea { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--line); color: var(--muted); font-size: 12.5px; }
+.idea b { color: var(--ink-2); font-weight: 600; }
+details { margin-top: 8px; font-size: 13px; }
+summary { cursor: pointer; color: var(--ink-2); }
+table { width: 100%; border-collapse: collapse; margin-top: 8px; font-variant-numeric: tabular-nums; }
+th, td { text-align: left; padding: 4px 8px; border-bottom: 1px solid var(--line); }
+th { color: var(--muted); font-weight: 600; font-size: 12px; }
+td.n, th.n { text-align: right; }
+
+/* Heatmap: plain CSS, no library */
+.heat { display: grid; grid-template-columns: 36px repeat(24, minmax(0, 1fr)); gap: 2px; font-size: 11px; color: var(--muted); }
+.heat .cell { aspect-ratio: 1; border-radius: 3px; background: var(--heat-0); min-height: 10px; }
+.heat .cell:hover { outline: 2px solid var(--ink); outline-offset: 0; }
+.heat .hour { text-align: center; }
+.heat .day { align-self: center; }
+.scale { display: flex; align-items: center; gap: 4px; margin-top: 10px; font-size: 12px; color: var(--muted); }
+.scale span.sw { width: 18px; height: 10px; border-radius: 2px; display: inline-block; }
+.tip { position: fixed; pointer-events: none; background: var(--ink); color: var(--card); padding: 4px 8px; border-radius: 6px; font-size: 12px; display: none; z-index: 10; }
+
+/* Ranked list: plain CSS, no library */
+.ranked { list-style: none; margin: 0; padding: 0; }
+.ranked li { display: grid; grid-template-columns: minmax(0, 1fr) 90px; gap: 4px 12px; padding: 6px 0; border-bottom: 1px solid var(--line); }
+.ranked .name { font-weight: 550; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ranked .num { text-align: right; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.ranked .bar { grid-column: 1 / -1; height: 6px; border-radius: 3px; background: var(--heat-0); overflow: hidden; }
+.ranked .bar i { display: block; height: 100%; border-radius: 3px; background: var(--s1); }
+
+.legend { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12px; color: var(--ink-2); margin-bottom: 8px; }
+.legend span::before { content: ""; display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; background: var(--c); }
+.optional { margin: 16px 0 0; max-width: 760px; padding: 10px 14px; border: 1px solid var(--line); border-left: 4px solid var(--s1); border-radius: 8px; background: var(--card); color: var(--ink-2); font-size: 14px; }
+.optional b { color: var(--ink); }
+footer { margin-top: 32px; color: var(--muted); font-size: 12.5px; }
+</style>
+</head>
+<body>
+<main>
+<header>
+  <h1>Demo pack insights</h1>
+  <p>The Maester report already says which checks passed and failed. A pack's own report is the place for what
+  a list of results cannot show: how much there is, how it is spread, how it changes from run to run, and where
+  the outliers are. Each card below is one idea, with a note on why it is drawn that way.</p>
+  <div class="meta" id="meta"></div>
+  <p class="optional"><b>A report is optional.</b> A Maester pack does not have to include one: its test results
+  already appear in the Maester report. This page only shows what you can add if your pack collects data worth
+  charting.</p>
+</header>
+
+<div class="section-title">At a glance</div>
+<div class="tiles" id="tiles"></div>
+
+<div class="section-title">Identity</div>
+<div class="grid">
+  <section class="card" id="card-methods">
+    <h2>Strongest sign-in method per member</h2>
+    <p class="takeaway" id="take-methods"></p>
+    <div class="plot"><canvas id="chart-methods" role="img" aria-label="Doughnut chart of the strongest sign-in method each member has"></canvas></div>
+    <p class="idea"><b>Idea: a doughnut for part of a whole.</b> A test can pass while 65 people still have no
+    method at all; the mix shows how far the tenant is from the goal. Keep it to six slices or fewer, and use a
+    bar chart when the values are close.</p>
+  </section>
+  <section class="card" id="card-trend">
+    <h2>MFA over the last 12 weeks</h2>
+    <p class="takeaway" id="take-trend"></p>
+    <div class="plot"><canvas id="chart-trend" role="img" aria-label="Line chart of MFA registration over twelve weeks"></canvas></div>
+    <p class="idea"><b>Idea: a line for change over time.</b> A result is a snapshot; a trend says whether things
+    are getting better. Keep the history in the pack's own store, or read it from the tenant (sign-in logs,
+    audit logs, reports), and put both series on one axis only when they share a unit.</p>
+  </section>
+  <section class="card" id="card-stale">
+    <h2>Accounts by last sign-in</h2>
+    <p class="takeaway" id="take-stale"></p>
+    <div class="plot"><canvas id="chart-stale" role="img" aria-label="Bar chart of accounts by time since their last sign-in"></canvas></div>
+    <p class="idea"><b>Idea: a histogram with the part that matters picked out.</b> A test checks a threshold
+    (90 days); the shape shows how many are just under it and will cross it next month. One colour for the
+    buckets past the threshold, grey for the rest.</p>
+  </section>
+  <section class="card" id="card-heat">
+    <h2>Admin sign-ins by day and hour (UTC)</h2>
+    <p class="takeaway" id="take-heat"></p>
+    <div class="heat" id="heat" role="img" aria-label="Heatmap of admin sign-ins by weekday and hour"></div>
+    <div class="scale" id="heat-scale"></div>
+    <p class="idea"><b>Idea: a heatmap for patterns in time.</b> No library: a CSS grid with one shade of blue,
+    darker for more. Odd-hour activity stands out at a glance, which no single pass/fail result would show.</p>
+  </section>
+</div>
+
+<div class="section-title">Devices, apps and sharing</div>
+<div class="grid">
+  <section class="card" id="card-devices">
+    <h2>Device compliance by operating system</h2>
+    <p class="takeaway" id="take-devices"></p>
+    <div class="plot"><canvas id="chart-devices" role="img" aria-label="Stacked bar chart of device compliance by operating system"></canvas></div>
+    <p class="idea"><b>Idea: 100% stacked bars to compare shares across groups of different sizes.</b> The
+    counts are in the tooltip and the table. Status colours (green, red) are used only because they mean good
+    and bad here, and the legend names them.</p>
+  </section>
+  <section class="card" id="card-apps">
+    <h2>Apps by permissions and users</h2>
+    <p class="takeaway" id="take-apps"></p>
+    <div class="plot tall"><canvas id="chart-apps" role="img" aria-label="Bubble chart of apps by permissions and users"></canvas></div>
+    <p class="idea"><b>Idea: a bubble chart to find outliers in two dimensions.</b> Many permissions and few
+    users, at the bottom right, is the corner to look at; the size of a bubble is its sign-ins. Keep it to two or three colours.</p>
+  </section>
+  <section class="card" id="card-maturity">
+    <h2>Score by area, now and three months ago</h2>
+    <p class="takeaway" id="take-maturity"></p>
+    <div class="plot tall"><canvas id="chart-maturity" role="img" aria-label="Radar chart of the score of each area now and three months ago"></canvas></div>
+    <p class="idea"><b>Idea: a radar for a profile across areas.</b> It shows balance: which area lags the
+    others. Use it for five to eight areas on the same 0-100 scale; for exact comparisons, a grouped bar chart
+    reads better.</p>
+  </section>
+  <section class="card" id="card-guests">
+    <h2>Groups with the most guests</h2>
+    <p class="takeaway" id="take-guests"></p>
+    <ul class="ranked" id="guests"></ul>
+    <p class="idea"><b>Idea: a ranked list with inline bars.</b> No library: a list and a CSS bar. The bar is
+    the share of guests in the group, so a small group that is mostly guests ranks next to a big one.</p>
+  </section>
+</div>
+
+<div class="section-title">This run</div>
+<div class="grid">
+  <section class="card" id="card-run">
+    <h2>Time to collect each kind of data</h2>
+    <p class="takeaway" id="take-run"></p>
+    <div class="plot"><canvas id="chart-run" role="img" aria-label="Bar chart of the seconds each kind of data took to collect"></canvas></div>
+    <p class="idea"><b>Idea: report on the run itself.</b> These are the real times of this run. Slow sources
+    and failures are what a person needs when a run takes too long or misses data.</p>
+  </section>
+</div>
+
+<footer id="footer">Charts drawn with Chart.js 4.5.1 (MIT licence), inline in this file. The heatmap and the
+ranked list are plain HTML and CSS. Every number except the run times is made up.</footer>
+</main>
+<div class="tip" id="tip"></div>
+
+<!-- Sample data, so the page draws when you open it in a browser. The test replaces it with the data of the run. -->
+<script id="report-data" type="application/json">{"LastSignIn":[{"Accounts":902,"Stale":false,"Bucket":"This week"},{"Accounts":214,"Stale":false,"Bucket":"1-4 weeks"},{"Accounts":79,"Stale":false,"Bucket":"1-3 months"},{"Accounts":31,"Stale":true,"Bucket":"3-6 months"},{"Accounts":15,"Stale":true,"Bucket":"6-12 months"},{"Accounts":7,"Stale":true,"Bucket":"Over a year"},{"Accounts":4,"Stale":true,"Bucket":"Never"}],"Apps":[{"SignIns":9800,"Permissions":4,"Users":1120,"Name":"Contoso HR portal","HighPrivilege":false},{"SignIns":4100,"Permissions":3,"Users":860,"Name":"Expense tracker","HighPrivilege":false},{"SignIns":2900,"Permissions":11,"Users":3,"Name":"Mail archiver","HighPrivilege":true},{"SignIns":2600,"Permissions":6,"Users":210,"Name":"Sales dashboard","HighPrivilege":false},{"SignIns":7200,"Permissions":14,"Users":2,"Name":"Backup service","HighPrivilege":true},{"SignIns":600,"Permissions":5,"Users":340,"Name":"Survey tool","HighPrivilege":false},{"SignIns":40,"Permissions":9,"Users":1,"Name":"Old sync script","HighPrivilege":true},{"SignIns":5200,"Permissions":2,"Users":980,"Name":"Wiki","HighPrivilege":false},{"SignIns":1100,"Permissions":7,"Users":95,"Name":"Partner portal","HighPrivilege":true}],"MfaTrend":{"Weeks":["Aug 3","Aug 10","Aug 17","Aug 24","Aug 31","Sep 7","Sep 14","Sep 21","Sep 28","Oct 5","Oct 12","Oct 19"],"Series":[{"Name":"Any MFA","Values":[81,82,84,84,86,87,88,89,90,91,92,93]},{"Name":"Phishing-resistant","Values":[17,19,19,21,24,26,27,30,32,34,36,38]}]},"Collection":[{"Items":1284,"Seconds":0.91,"Name":"Users","Status":"Passed"},{"Items":214,"Seconds":1.81,"Name":"Groups","Status":"Passed"},{"Items":0,"Seconds":2.71,"Name":"Devices","Status":"Failed"},{"Items":9,"Seconds":0.9,"Name":"Applications","Status":"Passed"},{"Items":37,"Seconds":1.8,"Name":"Policies","Status":"Passed"},{"Items":58,"Seconds":2.7,"Name":"Sites","Status":"Passed"}],"Kpis":[{"Value":1284,"Unit":"","History":[1190,1201,1215,1230,1242,1250,1268,1284],"Good":"none","Note":"members and guests","Label":"Accounts"},{"Value":162,"Unit":"","History":[118,124,131,139,144,150,157,162],"Good":"down","Note":"12.6% of accounts","Label":"Guests"},{"Value":57,"Unit":"","History":[88,84,79,71,70,64,61,57],"Good":"down","Note":"no sign-in for 90 days","Label":"Stale accounts"},{"Value":38,"Unit":"%","History":[19,22,24,27,30,33,35,38],"Good":"up","Note":"of members","Label":"Phishing-resistant MFA"},{"Value":9,"Unit":"","History":[15,15,14,13,12,11,9,9],"Good":"down","Note":"of 23 admin assignments","Label":"Standing admin roles"}],"Generated":"sample data","GuestGroups":[{"Guests":38,"Members":52,"Name":"Project Falcon"},{"Guests":31,"Members":34,"Name":"Partner network"},{"Guests":17,"Members":26,"Name":"Marketing agency"},{"Guests":6,"Members":14,"Name":"Board"},{"Guests":4,"Members":1122,"Name":"All company"}],"Maturity":{"Series":[{"Name":"Three months ago","Values":[58,49,41,52,37,63]},{"Name":"Now","Values":[74,61,45,66,58,70]}],"Areas":["Identity","Devices","Data","Apps","Monitoring","Collaboration"]},"Tenant":"Contoso (made-up data)","AdminSignIns":{"Days":["Mon","Tue","Wed","Thu","Fri","Sat","Sun"],"Counts":[[0,0,0,0,0,0,0,3,22,28,28,20,24,28,21,20,20,26,7,6,0,0,0,0],[0,0,0,0,0,0,0,7,21,15,23,21,14,18,29,16,16,22,7,4,0,0,0,6],[0,0,0,1,0,0,1,3,14,14,15,21,29,18,15,25,21,26,6,4,0,0,0,0],[0,0,0,0,0,1,0,3,20,16,23,22,20,18,25,25,14,16,4,7,0,0,0,1],[0,1,0,0,0,0,0,5,26,15,12,22,24,13,27,15,16,12,7,5,0,0,0,0],[0,0,9,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0],[0,0,0,0,4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]]},"Devices":[{"NotEvaluated":21,"Compliant":612,"NotCompliant":48,"Os":"Windows"},{"NotEvaluated":9,"Compliant":301,"NotCompliant":12,"Os":"iOS"},{"NotEvaluated":14,"Compliant":188,"NotCompliant":37,"Os":"Android"},{"NotEvaluated":31,"Compliant":96,"NotCompliant":22,"Os":"macOS"},{"NotEvaluated":18,"Compliant":4,"NotCompliant":3,"Os":"Linux"}],"AuthMethods":[{"Name":"Passkey (FIDO2)","Users":241},{"Name":"Windows Hello","Users":246},{"Name":"Authenticator app","Users":612},{"Name":"SMS or voice","Users":120},{"Name":"None","Users":65}]}</script>
+<script src="chart.js/chart.umd.min.js"></script>
+<script>
+(function () {
+  'use strict';
+  var data = JSON.parse(document.getElementById('report-data').textContent);
+  var root = document.documentElement;
+  var fmt = new Intl.NumberFormat('en-US');
+  var charts = [];
+
+  function css(name) { return getComputedStyle(root).getPropertyValue(name).trim(); }
+  function $(id) { return document.getElementById(id); }
+  function el(tag, className, text) {
+    var e = document.createElement(tag);
+    if (className) e.className = className;
+    if (text !== undefined && text !== null) e.textContent = String(text);
+    return e;
+  }
+  function sum(list, f) { return list.reduce(function (a, x) { return a + f(x); }, 0); }
+  function pct(n, d) { return d ? Math.round(n * 100 / d) : 0; }
+  // A sentence with bold parts: takeaway('take-x', ['plain ', {b: 'bold'}, ' plain']).
+  function takeaway(id, parts) {
+    var p = $(id);
+    p.textContent = '';
+    parts.forEach(function (part) { p.appendChild(typeof part === 'string' ? document.createTextNode(part) : el('b', null, part.b)); });
+  }
+  // A table view of every chart, for screen readers and for the exact numbers.
+  function addTable(cardId, headers, rows) {
+    var details = el('details'), table = el('table'), head = el('tr');
+    details.appendChild(el('summary', null, 'Show the data'));
+    headers.forEach(function (h, i) { head.appendChild(el('th', i ? 'n' : null, h)); });
+    table.appendChild(head);
+    rows.forEach(function (r) {
+      var tr = el('tr');
+      r.forEach(function (v, i) { tr.appendChild(el('td', i ? 'n' : null, typeof v === 'number' ? fmt.format(v) : v)); });
+      table.appendChild(tr);
+    });
+    details.appendChild(table);
+    $(cardId).appendChild(details);
+  }
+
+  // ---- Text, tables and the parts drawn without a library: once ----
+
+  $('meta').textContent = [data.Tenant, data.Generated ? 'Written ' + data.Generated : null].filter(Boolean).join(' · ');
+
+  (data.Kpis || []).forEach(function (k, i) {
+    var tile = el('div', 'tile');
+    tile.appendChild(el('span', 'label', k.Label));
+    tile.appendChild(el('span', 'value', fmt.format(k.Value) + (k.Unit || '')));
+    var h = k.History || [], change = h.length > 1 ? h[h.length - 1] - h[0] : 0;
+    var better = k.Good === 'up' ? change > 0 : k.Good === 'down' ? change < 0 : null;
+    var cls = change === 0 || better === null ? 'flat' : better ? 'better' : 'worse';
+    var arrow = change > 0 ? '▲ ' : change < 0 ? '▼ ' : '';
+    tile.appendChild(el('span', 'delta ' + cls, arrow + (change > 0 ? '+' : '') + fmt.format(change) + (k.Unit || '') + ' over ' + h.length + ' runs'));
+    tile.appendChild(el('span', 'note', k.Note));
+    var box = el('div', 'spark'), canvas = el('canvas');
+    canvas.id = 'spark-' + i;
+    canvas.setAttribute('role', 'img');
+    canvas.setAttribute('aria-label', k.Label + ' over the last ' + h.length + ' runs: ' + h.join(', '));
+    box.appendChild(canvas);
+    tile.appendChild(box);
+    $('tiles').appendChild(tile);
+  });
+
+  var methods = data.AuthMethods || [];
+  var members = sum(methods, function (m) { return m.Users; });
+  var none = methods.filter(function (m) { return m.Name === 'None'; })[0];
+  var phone = methods.filter(function (m) { return /SMS/.test(m.Name); })[0];
+  takeaway('take-methods', [{ b: fmt.format(none ? none.Users : 0) + ' members' }, ' have no MFA method and ',
+    { b: fmt.format(phone ? phone.Users : 0) }, ' rely on SMS or voice: ' + pct((none ? none.Users : 0) + (phone ? phone.Users : 0), members) + '% of ' + fmt.format(members) + '.']);
+  addTable('card-methods', ['Method', 'Members', 'Share'], methods.map(function (m) { return [m.Name, m.Users, pct(m.Users, members) + '%']; }));
+
+  var trend = data.MfaTrend || { Weeks: [], Series: [] };
+  var strong = trend.Series[1] ? trend.Series[1].Values : [];
+  if (strong.length) {
+    takeaway('take-trend', ['Phishing-resistant MFA went from ', { b: strong[0] + '%' }, ' to ', { b: strong[strong.length - 1] + '%' },
+      ' of members in ' + strong.length + ' weeks; at this pace it passes 50% in about ' +
+      Math.max(1, Math.ceil((50 - strong[strong.length - 1]) / ((strong[strong.length - 1] - strong[0]) / (strong.length - 1)))) + ' weeks.']);
+  }
+  addTable('card-trend', ['Week'].concat(trend.Series.map(function (s) { return s.Name + ' %'; })),
+    trend.Weeks.map(function (w, i) { return [w].concat(trend.Series.map(function (s) { return s.Values[i]; })); }));
+
+  var buckets = data.LastSignIn || [];
+  var stale = sum(buckets.filter(function (b) { return b.Stale; }), function (b) { return b.Accounts; });
+  var nearly = buckets.filter(function (b) { return !b.Stale; }).slice(-1)[0];
+  takeaway('take-stale', [{ b: fmt.format(stale) + ' accounts' }, ' have not signed in for three months or more, and ',
+    { b: fmt.format(nearly ? nearly.Accounts : 0) }, ' more will join them if they stay away another few weeks.']);
+  addTable('card-stale', ['Last sign-in', 'Accounts'], buckets.map(function (b) { return [b.Bucket, b.Accounts]; }));
+
+  // Heatmap
+  var heat = data.AdminSignIns || { Days: [], Counts: [] };
+  var max = Math.max.apply(null, [1].concat(heat.Counts.map(function (r) { return Math.max.apply(null, r); })));
+  var grid = $('heat'), tip = $('tip'), odd = 0;
+  grid.appendChild(el('span'));
+  for (var hr = 0; hr < 24; hr++) grid.appendChild(el('span', 'hour', hr % 6 === 0 ? String(hr).padStart(2, '0') : ''));
+  heat.Days.forEach(function (day, d) {
+    grid.appendChild(el('span', 'day', day));
+    heat.Counts[d].forEach(function (n, h) {
+      var cell = el('span', 'cell');
+      var step = n === 0 ? 0 : Math.min(5, 1 + Math.floor((n / max) * 4.999));
+      cell.style.background = 'var(--heat-' + step + ')';
+      var label = day + ' ' + String(h).padStart(2, '0') + ':00 · ' + n + ' sign-in' + (n === 1 ? '' : 's');
+      cell.setAttribute('aria-label', label);
+      cell.addEventListener('mousemove', function (e) { tip.textContent = label; tip.style.display = 'block'; tip.style.left = (e.clientX + 12) + 'px'; tip.style.top = (e.clientY + 12) + 'px'; });
+      cell.addEventListener('mouseleave', function () { tip.style.display = 'none'; });
+      grid.appendChild(cell);
+      if ((d >= 5 || h < 7 || h > 19) && n > 0) odd += n;
+    });
+  });
+  var scale = $('heat-scale');
+  scale.appendChild(el('span', null, 'Fewer'));
+  for (var s = 0; s <= 5; s++) { var sw = el('span', 'sw'); sw.style.background = 'var(--heat-' + s + ')'; scale.appendChild(sw); }
+  scale.appendChild(el('span', null, 'More'));
+  takeaway('take-heat', [{ b: odd + ' admin sign-ins' }, ' were at night or at the weekend, including a burst on Saturday at 02:00. Worth a look in the sign-in logs.']);
+  addTable('card-heat', ['Day'].concat(['00-05', '06-11', '12-17', '18-23']), heat.Days.map(function (day, d) {
+    var r = heat.Counts[d];
+    return [day].concat([0, 6, 12, 18].map(function (h0) { return r.slice(h0, h0 + 6).reduce(function (a, b) { return a + b; }, 0); }));
+  }));
+
+  var devices = data.Devices || [];
+  var worst = devices.map(function (x) { var t = x.Compliant + x.NotCompliant + x.NotEvaluated; return { os: x.Os, share: pct(x.NotCompliant + x.NotEvaluated, t), t: t }; })
+    .sort(function (a, b) { return b.share - a.share; })[0];
+  if (worst) takeaway('take-devices', [{ b: worst.os }, ' has the lowest share of compliant devices: ', { b: worst.share + '%' }, ' of its ' + worst.t + ' devices are not compliant or not evaluated yet.']);
+  addTable('card-devices', ['OS', 'Compliant', 'Not compliant', 'Not evaluated'], devices.map(function (x) { return [x.Os, x.Compliant, x.NotCompliant, x.NotEvaluated]; }));
+
+  var apps = data.Apps || [];
+  var risky = apps.filter(function (a) { return a.HighPrivilege && a.Users < 100; });
+  takeaway('take-apps', [{ b: risky.length + ' apps' }, ' have high-privilege permissions but fewer than 100 users: ',
+    risky.map(function (a) { return a.Name; }).join(', ') + '.']);
+  addTable('card-apps', ['App', 'Permissions', 'Users', 'Sign-ins (30 days)'], apps.map(function (a) { return [a.Name + (a.HighPrivilege ? ' (high privilege)' : ''), a.Permissions, a.Users, a.SignIns]; }));
+
+  var maturity = data.Maturity || { Areas: [], Series: [] };
+  if (maturity.Series.length === 2) {
+    var gains = maturity.Areas.map(function (a, i) { return { a: a, g: maturity.Series[1].Values[i] - maturity.Series[0].Values[i], v: maturity.Series[1].Values[i] }; });
+    var low = gains.slice().sort(function (x, y) { return x.v - y.v; })[0];
+    var top = gains.slice().sort(function (x, y) { return y.g - x.g; })[0];
+    takeaway('take-maturity', [{ b: top.a }, ' improved most (+' + top.g + '). ', { b: low.a }, ' is now the weakest area at ' + low.v + ' and moved only +' +
+      gains.filter(function (x) { return x.a === low.a; })[0].g + '.']);
+  }
+  addTable('card-maturity', ['Area'].concat(maturity.Series.map(function (s) { return s.Name; })), maturity.Areas.map(function (a, i) { return [a].concat(maturity.Series.map(function (s) { return s.Values[i]; })); }));
+
+  var groups = (data.GuestGroups || []).slice().sort(function (a, b) { return b.Guests - a.Guests; });
+  groups.forEach(function (g) {
+    var li = el('li');
+    li.appendChild(el('span', 'name', g.Name));
+    li.appendChild(el('span', 'num', g.Guests + ' of ' + fmt.format(g.Members)));
+    var bar = el('span', 'bar'), fill = el('i');
+    fill.style.width = pct(g.Guests, g.Members) + '%';
+    bar.title = pct(g.Guests, g.Members) + '% guests';
+    bar.appendChild(fill);
+    li.appendChild(bar);
+    $('guests').appendChild(li);
+  });
+  var mostly = groups.filter(function (g) { return g.Guests * 2 > g.Members; });
+  takeaway('take-guests', [{ b: mostly.length + ' groups' }, ' are mostly guests. ', { b: mostly.map(function (g) { return g.Name; }).join(' and ') },
+    ' should have an owner who reviews their members.']);
+
+  var run = data.Collection || [];
+  var slowest = run.slice().sort(function (a, b) { return b.Seconds - a.Seconds; })[0];
+  var failedRun = run.filter(function (r) { return r.Status === 'Failed'; });
+  if (slowest) takeaway('take-run', [{ b: slowest.Name }, ' took longest (' + slowest.Seconds.toFixed(1) + ' s of ' + sum(run, function (r) { return r.Seconds; }).toFixed(1) + ' s). ',
+    failedRun.length ? { b: failedRun.map(function (r) { return r.Name; }).join(', ') + ' failed' } : 'Nothing failed', failedRun.length ? ', so the report has no data for it.' : '.']);
+  addTable('card-run', ['Data', 'Items', 'Seconds', 'Result'], run.map(function (r) { return [r.Name, r.Items, r.Seconds, r.Status]; }));
+
+  // ---- Charts: drawn again when the colour scheme changes, so they take the dark or light colours ----
+
+  function draw() {
+    if (!window.Chart) return;
+    charts.forEach(function (c) { c.destroy(); });
+    charts = [];
+    var t = { ink: css('--ink'), ink2: css('--ink-2'), muted: css('--muted'), grid: css('--grid'), axis: css('--axis'), card: css('--card'),
+      s1: css('--s1'), s2: css('--s2'), s3: css('--s3'), s4: css('--s4'), neutral: css('--neutral'), good: css('--good'), critical: css('--critical') };
+    var C = window.Chart;
+    C.defaults.font.family = getComputedStyle(document.body).fontFamily;
+    C.defaults.font.size = 12;
+    C.defaults.color = t.muted;
+    C.defaults.borderColor = t.grid;
+    C.defaults.maintainAspectRatio = false;
+    C.defaults.animation = false;
+    C.defaults.plugins.legend.labels.color = t.ink2;
+    C.defaults.plugins.legend.labels.boxWidth = 10;
+    C.defaults.plugins.legend.labels.boxHeight = 10;
+    C.defaults.plugins.legend.labels.useBorderRadius = true;
+    C.defaults.plugins.legend.labels.borderRadius = 2;
+    C.defaults.plugins.tooltip.backgroundColor = t.ink;
+    C.defaults.plugins.tooltip.titleColor = t.card;
+    C.defaults.plugins.tooltip.bodyColor = t.card;
+    C.defaults.plugins.tooltip.cornerRadius = 6;
+    C.defaults.plugins.tooltip.boxPadding = 4;
+    var axis = function (extra) { return Object.assign({ grid: { color: t.grid, drawTicks: false }, border: { color: t.axis }, ticks: { padding: 6 } }, extra || {}); };
+    var add = function (id, config) { charts.push(new C($(id), config)); };
+
+    (data.Kpis || []).forEach(function (k, i) {
+      var h = k.History || [];
+      add('spark-' + i, {
+        type: 'line',
+        data: { labels: h.map(function (_, j) { return j === h.length - 1 ? 'This run' : (h.length - 1 - j) + ' runs ago'; }),
+          datasets: [{ data: h, borderColor: t.s1, borderWidth: 2, pointRadius: 0, pointHoverRadius: 4, tension: 0.3, fill: false }] },
+        options: { plugins: { legend: { display: false }, tooltip: { displayColors: false, callbacks: { label: function (c) { return fmt.format(c.parsed.y) + (k.Unit || ''); } } } },
+          scales: { x: { display: false }, y: { display: false } }, interaction: { mode: 'index', intersect: false }, layout: { padding: 4 } }
+      });
+    });
+
+    var methodColours = methods.map(function (m, i) { return m.Name === 'None' ? t.neutral : [t.s3, t.s4, t.s1, t.s2][i % 4]; });
+    add('chart-methods', {
+      type: 'doughnut',
+      data: { labels: methods.map(function (m) { return m.Name; }), datasets: [{ data: methods.map(function (m) { return m.Users; }), backgroundColor: methodColours, borderColor: t.card, borderWidth: 2, hoverOffset: 4 }] },
+      options: { cutout: '62%', plugins: { legend: { position: 'right' },
+        tooltip: { callbacks: { label: function (c) { return ' ' + c.label + ': ' + fmt.format(c.parsed) + ' (' + pct(c.parsed, members) + '%)'; } } } } }
+    });
+
+    add('chart-trend', {
+      type: 'line',
+      data: { labels: trend.Weeks, datasets: trend.Series.map(function (s, i) { var c = [t.s1, t.s2][i % 2]; return { label: s.Name, data: s.Values, borderColor: c, backgroundColor: c, borderWidth: 2, pointRadius: 0, pointHoverRadius: 5, tension: 0.25 }; }) },
+      options: { interaction: { mode: 'index', intersect: false }, plugins: { legend: { position: 'top', align: 'start' },
+        tooltip: { callbacks: { label: function (c) { return ' ' + c.dataset.label + ': ' + c.parsed.y + '%'; } } } },
+        scales: { x: axis({ grid: { display: false } }), y: axis({ min: 0, max: 100, ticks: { stepSize: 25, callback: function (v) { return v + '%'; } } }) } }
+    });
+
+    add('chart-stale', {
+      type: 'bar',
+      data: { labels: buckets.map(function (b) { return b.Bucket; }),
+        datasets: [{ label: 'Accounts', data: buckets.map(function (b) { return b.Accounts; }), backgroundColor: buckets.map(function (b) { return b.Stale ? t.s2 : t.neutral; }), borderRadius: 4, borderSkipped: 'start', maxBarThickness: 44 }] },
+      options: { plugins: { legend: { display: false }, tooltip: { callbacks: { afterLabel: function (c) { return buckets[c.dataIndex].Stale ? 'Stale: no sign-in for 90 days or more' : ''; } } } },
+        scales: { x: axis({ grid: { display: false } }), y: axis({ type: 'logarithmic', ticks: { callback: function (v) { return [1, 10, 100, 1000].indexOf(v) >= 0 ? fmt.format(v) : ''; } }, title: { display: true, text: 'Accounts (log scale)' } }) } }
+    });
+
+    var totals = devices.map(function (x) { return x.Compliant + x.NotCompliant + x.NotEvaluated; });
+    var part = function (key) { return devices.map(function (x, i) { return Math.round(x[key] * 1000 / totals[i]) / 10; }); };
+    var keys = [['Compliant', 'Compliant', t.good], ['NotCompliant', 'Not compliant', t.critical], ['NotEvaluated', 'Not evaluated', t.neutral]];
+    add('chart-devices', {
+      type: 'bar',
+      data: { labels: devices.map(function (x) { return x.Os; }), datasets: keys.map(function (k) { return { label: k[1], data: part(k[0]), backgroundColor: k[2], borderColor: t.card, borderWidth: { right: 2 }, borderSkipped: false, maxBarThickness: 26 }; }) },
+      options: { indexAxis: 'y', plugins: { legend: { position: 'top', align: 'start' },
+        tooltip: { callbacks: { label: function (c) { var x = devices[c.dataIndex], k = keys[c.datasetIndex]; return ' ' + k[1] + ': ' + fmt.format(x[k[0]]) + ' of ' + fmt.format(totals[c.dataIndex]) + ' (' + c.parsed.x + '%)'; } } } },
+        scales: { x: axis({ stacked: true, max: 100, ticks: { stepSize: 25, callback: function (v) { return v + '%'; } } }), y: axis({ stacked: true, grid: { display: false } }) } }
+    });
+
+    var maxSignIns = Math.max.apply(null, [1].concat(apps.map(function (a) { return a.SignIns; })));
+    var bubbles = function (high) {
+      return apps.filter(function (a) { return a.HighPrivilege === high; }).map(function (a) { return { x: a.Permissions, y: a.Users, r: 5 + 15 * Math.sqrt(a.SignIns / maxSignIns), name: a.Name, signIns: a.SignIns }; });
+    };
+    var withAlpha = function (hex) { return hex + 'b3'; };
+    add('chart-apps', {
+      type: 'bubble',
+      data: { datasets: [
+        { label: 'High-privilege permissions', data: bubbles(true), backgroundColor: withAlpha(t.s2), borderColor: t.card, borderWidth: 2 },
+        { label: 'Other apps', data: bubbles(false), backgroundColor: withAlpha(t.s1), borderColor: t.card, borderWidth: 2 }] },
+      options: { plugins: { legend: { position: 'top', align: 'start' },
+        tooltip: { callbacks: { title: function (items) { return items[0].raw.name; }, label: function (c) { return [' ' + c.raw.x + ' permissions', ' ' + fmt.format(c.raw.y) + ' users', ' ' + fmt.format(c.raw.signIns) + ' sign-ins in 30 days']; } } } },
+        scales: { x: axis({ min: 0, max: 16, title: { display: true, text: 'Permissions granted' } }),
+          y: axis({ type: 'logarithmic', min: 0.5, max: 3000, title: { display: true, text: 'Users (log scale)' }, ticks: { callback: function (v) { return [1, 10, 100, 1000].indexOf(v) >= 0 ? fmt.format(v) : ''; } } }) } }
+    });
+
+    add('chart-maturity', {
+      type: 'radar',
+      data: { labels: maturity.Areas, datasets: maturity.Series.map(function (s, i) {
+        var c = i === maturity.Series.length - 1 ? t.s1 : t.muted;
+        return { label: s.Name, data: s.Values, borderColor: c, backgroundColor: i === maturity.Series.length - 1 ? t.s1 + '33' : 'transparent', borderWidth: 2, pointRadius: 3, pointBackgroundColor: c };
+      }) },
+      options: { plugins: { legend: { position: 'top', align: 'start' } },
+        scales: { r: { min: 0, max: 100, ticks: { stepSize: 25, backdropColor: 'transparent', color: t.muted }, grid: { color: t.grid }, angleLines: { color: t.grid }, pointLabels: { color: t.ink2, font: { size: 12 } } } } }
+    });
+
+    add('chart-run', {
+      type: 'bar',
+      data: { labels: run.map(function (r) { return r.Name; }),
+        datasets: [{ label: 'Seconds', data: run.map(function (r) { return r.Seconds; }), backgroundColor: run.map(function (r) { return r.Status === 'Failed' ? t.critical : t.s1; }), borderRadius: 4, borderSkipped: 'start', maxBarThickness: 22 }] },
+      options: { indexAxis: 'y', plugins: { legend: { display: false },
+        tooltip: { callbacks: { label: function (c) { var r = run[c.dataIndex]; return ' ' + r.Seconds.toFixed(2) + ' s · ' + fmt.format(r.Items) + ' items · ' + r.Status; } } } },
+        scales: { x: axis({ beginAtZero: true, title: { display: true, text: 'Seconds' } }), y: axis({ grid: { display: false }, ticks: { callback: function (v, i) { return run[i].Name + (run[i].Status === 'Failed' ? ' (failed)' : ''); } } }) } }
+    });
+  }
+
+  draw();
+  if (window.matchMedia) {
+    var mq = window.matchMedia('(prefers-color-scheme: dark)');
+    if (mq.addEventListener) mq.addEventListener('change', draw);
+  }
+})();
+</script>
+</body>
+</html>

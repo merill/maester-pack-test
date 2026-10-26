@@ -1,0 +1,47 @@
+{
+  "$schema": "https://maester.dev/schemas/maester-pack-1.0.json",
+  "Id": "maester365.demo",
+  "Guid": "1ee323d7-1d0c-498e-985c-081875c72dac",
+  "Name": "Maester demo pack",
+  "Description": "The pack to copy when you write your own: a test for each result, a setting, a family, its own connector, a Microsoft Graph read, live progress and its own report in the Maester report.",
+  "Version": "1.1.0",
+  "Publisher": "maester365",
+  "License": "MIT",
+  "Homepage": "https://github.com/maester365/maester-pack-demo",
+  "Support": "https://github.com/maester365/maester-pack-demo/issues",
+  "SecurityContact": "https://github.com/maester365/maester-pack-demo/security/advisories/new",
+  "RequiresMaester": ">=3.0",
+  "Code": "DEMO",
+  "Suites": [
+    "tests"
+  ],
+  "Helpers": [
+    "helpers"
+  ],
+  "Connectors": [
+    {
+      "Service": "DEMO.Sample",
+      "DisplayName": "Demo sample service",
+      "File": "connector/Connect-DemoSample.ps1",
+      "Connect": "Connect-DemoSample",
+      "Test": "Test-DemoSample",
+      "Disconnect": "Disconnect-DemoSample"
+    }
+  ],
+  "Uses": {
+    "Services": [
+      "DEMO.Sample",
+      "Graph"
+    ],
+    "GraphScopes": [
+      "Organization.Read.All"
+    ],
+    "Network": [],
+    "Modules": []
+  },
+  "Categories": [
+    "Demo",
+    "Getting started"
+  ],
+  "Banner": "assets/banner.png"
+}
